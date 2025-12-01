@@ -1,0 +1,562 @@
+---
+title: "Midterm"
+output: html_document
+date: "2025-11-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, warnings=FALSE, message=FALSE}
+setwd("C:\\Users\\student\\OneDrive - Bryant University\\Documents\\GitHub\\Math421")
+library(gganimate)
+library(ggplot2)
+library(tidyverse)
+library(haven)
+library(dplyr)
+```
+
+## I. Data Wranggling
+
+1. Download the data file `hdd0318cy.sas7bdat`.  
+
+2. Use `read_sas` in library `haven` to read the data.
+```{r}
+library(haven)
+df <- read_sas("hdd0318cy.sas7bdat")
+```
+
+    
+3. Filter the data to have only patients of the year 2018 (`yod=18`)
+```{r}
+df <- df %>% 
+  filter(yod==18)
+```
+
+    
+4. Select to work with only following variables: 
+```{r}
+df <- df[, c("yod", "payfix","pay_ub92","age",  
+                      "sex","raceethn","provider","moa", 
+                      "yoa","mod","admtype", "asource" , 
+                      "preopday" ,"los", "service" , "icu","ccu",    
+                      "dispub92", "payer"  ,"drg","trandb", 
+                      "randbg","randbs","orr", "anes","seq",   
+                      "lab","dtest", "ther","blood","phar", 
+                      "other","patcon","bwght","total","tot" ,  
+                      "ecodub92","b_wt","pt_state","diag_adm","ancilar" ,
+                      "campus","er_fee","er_chrg","er_mode","obs_chrg",
+                      "obs_hour","psycchrg","nicu_day",'race')]
+```
+
+To save the data file use `write_csv(df, 'midterm.csv')`, for example.  Also notice that, empty values in the data before writing to csv may turn to NAs later when you re-read the file. 
+```{r}
+write_csv(df, 'midterm.csv')
+```
+
+5. What are variables that have missing values?
+```{r}
+missingdata <- df %>%
+    summarise_all(~ sum(is.na(.)))
+```
+
+ 
+6. Remove all variables with missing values.
+```{r}
+df <- df %>%
+  select_if(~ !any(is.na(.)))
+```
+ 
+7. Refer to the data description in the file `HDD2015-18cy6-20-19.docx`, which variable recording the month of admission?, which variable recording the month of discharge?
+```{r}
+# moa = month of admission
+# mod = month of discharge
+
+```
+
+8. Which month admitted the most number of patients? Which month admitted the most number of male patients?
+```{r}
+## MAP = Month Admitted the most Patients
+map_month <- df %>%
+  count(moa) %>%
+  arrange(desc(n)) %>%
+  slice(1)
+
+print(map_month)
+
+## MAM = Most Admitted Male by month
+mam_month <- df %>%
+ filter(sex == 1) %>%
+  count(moa) %>%
+  arrange(desc(n)) %>%
+  slice(1)
+print(mam_month)
+```
+
+9. Which month has the most number of teenage female patients?
+```{r}
+## MATF = Most Admitted Teenage Female Patients by month
+matf_month <- df %>%
+ filter(sex == 2, age >12, age <=19) %>%
+  count(moa) %>%
+  arrange(desc(n)) %>%
+  slice(1)
+
+print(matf_month)
+## March has the most teenage female patients
+```
+
+10. Which provider has the most number of female patients in October? 
+```{r}
+##Most Female Patients by Provider in October
+f_october <- df %>%
+  filter(moa == 10 & sex == 2)
+f_october_provider <- f_october %>%
+  group_by(provider) %>%
+  summarise(FemaleCount = n()) %>%
+  arrange(desc(FemaleCount))
+provider <- f_october_provider[1, ]
+print(provider)
+```
+
+11. Are female patients older than male patients, on average? 
+```{r}
+## Average Age of Female and Males 
+m_average_age <- mean(df$age[df$sex == 1], na.rm = TRUE)
+f_average_age <- mean(df$age[df$sex == 2], na.rm = TRUE)
+
+cat("Average age of males:", m_average_age, "\n")
+cat("Average age of females:", f_average_age, "\n")
+```
+
+12. Calculate the average age of patients by months. Which month has the oldest patients on average age?
+```{r}
+average_age_by_month <- df %>%
+  group_by(moa) %>%
+  summarise(AverageAge = mean(age, na.rm = TRUE)) %>%
+  arrange(desc(AverageAge))
+print(average_age_by_month)
+## The month with the oldest patients on average age is January
+```
+
+13. What is the name of the provider that has the highest total charge?
+```{r}
+highest_total_charge <- df %>%
+  group_by(provider) %>%
+  summarise(TotalCharge = sum(tot, na.rm = TRUE)) %>%
+  arrange(desc(TotalCharge)) %>%
+  slice(1)
+print(highest_total_charge)
+```
+
+14. What is the name of the provider that has the least total charge for teenage male on average?
+```{r}
+df$total <-as.numeric(df$total)
+## LCP = Leat Charging Provider
+lcp_tmale <- df %>%
+  filter(age >= 13 & age <= 19, sex == 1) %>% 
+  group_by(provider) %>%
+  summarize(avg_total_charge = mean(total, na.rm = TRUE)) %>% 
+  filter(avg_total_charge == min(avg_total_charge))
+print(lcp_tmale)
+```
+
+15. Create a season (Spring, Summer, Fall, Winter) variable. Calculate the length of stays by season.  Which season has the longest length of stays on average?
+```{r}
+df <- df %>%
+  mutate(season = case_when(
+    moa %in% c(3, 4, 5) ~ "Spring",
+    moa %in% c(6, 7, 8) ~ "Summer",
+    moa %in% c(9, 10, 11) ~ "Fall",
+    moa %in% c(12, 1, 2) ~ "Winter"
+  )) 
+avg_los_season <- df %>%
+  group_by(season) %>%
+  summarize(avg_los = mean(los, na.rm = TRUE)) %>%
+  arrange(desc(avg_los))
+print(avg_los_season)
+
+## The season with the longest length of stay on average is Summer
+```
+
+16. On average, how much a 20 year-old male get charged for staying 1 day in the Fall season?
+```{r}
+avg_charge_fall_20_male <- df %>%
+  filter(age == 20, sex == 1, season == "Fall", los == 1) %>%
+  summarize(avg_charge = mean(total, na.rm = TRUE))
+
+print(avg_charge_fall_20_male)
+## Average charge is $16,511
+```
+
+17. Write a paragraph to summarize the section and give your comments on the results. You could do some other calculations to support your points. 
+## Summary Paragraph
+In this section, we observe different variables within the Rhode Island Department of Health Hospital Discharge Data, and the averages in those variables. We found statistics relating to patients age, providers, stay length, etc... In looking at the differences in average age based on gender, we found that male patients were slightly older on average than female by 0.63473. With a result of 10, we found that the month with the most admitted overall patients and male patients was October. We also see that January has the oldest patients on average, and the most teenage female patients. March had the most teenage female patients admitted with 226. The providers are classified by numbers and Provider 7205 had the most female patients in October and had the highest total charge in 2018. According to the data, Summer had the longest length of stays on average, and we found that it would cost $16,511 for a 20 year old male to have a one-day stay in the fall. 
+
+-------
+
+## II. Data Visualization
+
+Continue with the data from part I. 
+
+1. Provides at least 10 meaningful plots. Comments on the plots. All plots should have title, caption, appropriate labels on x and y-axis
+```{r}
+# Example Plot 1: Distribution of Age
+plot1 <- ggplot(df, aes(x = age)) +
+  geom_histogram(binwidth = 5, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Age",
+       x = "Age",
+       y = "Count",
+       caption = "Histogram showing the distribution of patient ages") +
+  theme_minimal()
+print(plot1)
+
+# Example Plot 2: Total Charges by Month of Admission
+plot2 <- ggplot(df, aes(x = factor(moa), y = tot)) +
+  geom_boxplot(fill = "orange", color = "black", alpha = 0.7) +
+  labs(title = "Total Charges by Month of Admission",
+       x = "Month of Admission",
+       y = "Total Charges",
+       caption = "Boxplot showing total charges across different months of admission") +
+  theme_minimal()
+print(plot2)
+# Example Plot 3: Distribution of Length of Stay
+plot3 <- ggplot(df, aes(x = los)) +
+  geom_histogram(binwidth = 1, fill = "pink", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Length of Stay",
+       x = "Length of Stay (days)",
+       y = "Count",
+       caption = "Histogram showing the distribution of length of stay") +
+  theme_minimal()
+print(plot3)
+# Example Plot 4: Average Length of Stay by Season
+plot4 <- ggplot(df, aes(x = factor(season), y = los)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "green", color = "black", alpha = 0.7) +
+  labs(title = "Average Length of Stay by Season",
+       x = "Season",
+       y = "Average Length of Stay (days)",
+       caption = "Bar plot showing average length of stay across different seasons") +
+  theme_minimal()
+print(plot4)
+
+# Example Plot 5: Total Charges by Provider
+plot5 <- ggplot(df, aes(x = reorder(provider, -tot), y = tot)) +
+  geom_bar(stat = "summary", fun = "sum", fill = "purple", color = "black", alpha = 0.7) +
+  labs(title = "Total Charges by Provider",
+       x = "Provider",
+       y = "Total Charges",
+       caption = "Bar plot showing total charges by each provider") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+print(plot5)
+
+# Example Plot 6: Length of Stay vs Total Charges
+plot6 <- ggplot(df, aes(x = los, y = tot)) +
+  geom_point(alpha = 0.5, color = "red") +
+  labs(title = "Length of Stay vs Total Charges",
+       x = "Length of Stay (days)",
+       y = "Total Charges",
+       caption = "Scatter plot showing the relationship between length of stay and total charges") +
+  theme_minimal()
+print(plot6)
+
+# Example Plot 7: Average Total Charges by Age Group
+plot7 <- ggplot(df, aes(x = cut(age, breaks = seq(0, 100, by = 10)), y = tot)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "cyan", color = "black", alpha = 0.7) +
+  labs(title = "Average Total Charges by Age Group",
+       x = "Age Group",
+       y = "Average Total Charges",
+       caption = "Bar plot showing average total charges across different age groups") +
+  theme_minimal()
+print(plot)
+
+## Example Plot 8: Distribution of Total Charges
+plot8 <- ggplot(df, aes(x = tot)) +
+  geom_histogram(binwidth = 1000, fill = "yellow", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Total Charges",
+       x = "Total Charges",
+       y = "Count",
+       caption = "Histogram showing the distribution of total charges") +
+  theme_minimal()
+print(plot8)
+
+## Example Plot 9: Average Total Charges by Season
+plot9 <- ggplot(df, aes(x = factor(season), y = tot)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "lightgreen", color = "black", alpha = 0.7) +
+  labs(title = "Average Total Charges by Season",
+       x = "Season",
+       y = "Average Total Charges",
+       caption = "Bar plot showing average total charges across different seasons") +
+  theme_minimal()
+print(plot9)
+
+## Example Plot 10: Average Age by Month of Admission
+plot10 <- ggplot(df, aes(x = factor(moa), y = age)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "lightblue", color = "black", alpha = 0.7) +
+  labs(title = "Average Age by Month of Admission",
+       x = "Month of Admission",
+       y = "Average Age",
+       caption = "Bar plot showing average age across different months of admission") +
+  theme_minimal()
+print(plot10)
+```
+
+
+2. Make an animation plot. 
+```{r}
+## Example Animated Plot: Total Charges Over Months
+plot11 <- ggplot(df, aes(x = factor(moa), y = tot, group = 1)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red") +
+  labs(title = "Total Charges Over Months",
+       subtitle = "Month: {frame_along}",
+       x = "Month of Admission",
+       y = "Total Charges",
+       caption = "Line plot showing total charges over different months of admission") +
+  theme_minimal() +
+  transition_reveal(moa)
+animate(plot11, nframes = 100, fps = 10)
+```
+
+
+3. Write a paragraph to summarize the section and give your comments on the results. 
+## Summary Paragraph
+In this section, we created various visualizations to better understand the data from the Rhode Island Department of Health Hospital Discharge Data. The histograms and bar plots provided insights into the distribution of patient ages, total charges, and lengths of stay. For instance, we observed that the distribution of total charges is right-skewed, indicating that while most patients incur moderate charges, a few patients have significantly higher costs. The average length of stay varied by season, with summer showing the longest stays on average. Additionally, we explored relationships between variables, such as length of stay versus total charges, which revealed a positive correlation. The animated plot illustrated how total charges fluctuated over the months, providing a dynamic view of the data. Overall, these visualizations helped identify trends and patterns that may inform healthcare policy and resource allocation. 
+-------
+
+## III. Predictive Models
+
+Continue with the data from part I. Make sure you do not have any missing values in the data. Use the follows as the target and input variables: 
+
+*Target Variable*: Create the target variable taking value of 
+
+  - `low` if the total charge of a patient (`tot`) is smaller than the median of the total charge, and
+
+  - `high` otherwise. 
+
+*Input Variables*:
+
+  - "age","sex","raceethn","provider","moa","mod","admtype","campus", 'los'
+  
+-------
+
+1. Use `filter` function to filter out rows where `raceethn==''` or `admtype==''`. Make sure all the categorical variables are factor, numeric variables are numeric. Set Training : Testing Split = 10 : 90 
+```{r, warnings=FALSE} 
+library(dplyr)
+df2 = read_sas('hdd0318cy.sas7bdat')
+df2 <- df2 %>%
+  filter(yod == 18)
+df2 <- df2 %>%
+  select("yod", "payfix","pay_ub92","age",  
+                      "sex","raceethn","provider","moa", 
+                      "yoa","mod","admtype", "asource" , 
+                      "preopday" ,"los", "service" , "icu","ccu",    
+                      "dispub92", "payer"  ,"drg","trandb", 
+                      "randbg","randbs","orr", "anes","seq",   
+                      "lab","dtest", "ther","blood","phar", 
+                      "other","patcon","bwght","total","tot" ,  
+                      "ecodub92","b_wt","pt_state","diag_adm","ancilar" ,
+                      "campus","er_fee","er_chrg","er_mode","obs_chrg",
+                      "obs_hour","psycchrg","nicu_day")
+missing_values <- df2 %>%
+    summarise_all(~ sum(is.na(.)))
+df <- df %>%
+  select_if(~ !any(is.na(.)))
+df2$total <- as.numeric(as.character(df2$total))
+df2 <- df2 %>%
+  filter(!is.na(raceethn) & !is.na(admtype))
+df2 <- df2 %>%
+  mutate(target = ifelse(total < median(total, na.rm = TRUE), "low", "high"))
+table(df2$target)
+df2 <- df2 %>%
+  select(age, sex, raceethn, provider, moa, mod, admtype, campus, los, target)
+## Convert categorical variables to factors
+library(caret)
+df2 <- df2 %>% 
+  mutate(target = as.factor(target),
+         raceethn = as.factor(raceethn),
+         sex = as.factor(sex), 
+         provider = as.factor(provider), 
+         campus = as.factor(campus),
+         admtype = as.factor(admtype), 
+         moa = as.factor(moa), 
+         mod = as.factor(mod))
+## Set Training : Testing Split = 10 : 90
+SplitIndex <- createDataPartition(df2$target, p = .10, 
+                                  list = FALSE)
+df2_train <- df2[ SplitIndex, ]
+df2_test  <- df2[-SplitIndex, ]
+df2_train <- df2_train[ complete.cases(df2_train), ]
+df2_test  <- df2_test[ complete.cases(df2_test), ]
+stopifnot(sum(is.na(df2_train)) == 0)
+stopifnot(sum(is.na(df2_test))  == 0)
+
+```
+
+2. Train a decision tree using `rpart`.  Plot the decision tree. Plot the variable importance ranked by the tree. 
+```{r, warnings=FALSE}
+library(rpart)
+library(rpart.plot)
+library(caret)
+## Model 1.1
+dt_model <- rpart(target ~ ., 
+            data = df2_train,
+            control=rpart.control(maxdepth=2))
+rpart.plot(dt_model) 
+if (!is.null(dt_model$splits) && nrow(dt_model$splits) > 0) {
+  varImp <- varImp(dt_model)
+  print(varImp)
+} else {
+  cat("Tree has no splits — variable importance not available.\n")
+}
+```
+
+3. Using caret for this question. Set `Training Control` to be: Use Cross-Validation of 5 folds across all models.  Train & tune at least 2 different models (i.e. two different values for `method=` in the train function of caret).  Plot the hyper-parameter tuning plots for each model. 
+```{r}
+library(caret)
+## Model 1.2
+tuneGrid <- expand.grid(maxdepth = 2:10)
+trControl <- trainControl(method = "cv",
+                         number = 5)
+dt_model2 <- train(
+  target ~ ., 
+  data = df2_train,
+  method = "rpart2", 
+  trControl = trControl,
+  tuneGrid = tuneGrid,
+  na.action = na.omit
+)
+plot(dt_model2)
+## Model 1.3
+knn_model <- train(
+  target ~ .,
+  data = df2_train,
+  method = "knn",
+  trControl = trControl,
+  tuneLength = 10,
+  na.action = na.omit
+)
+knn_model
+plot(knn_model)
+```
+
+4. Plot the comparison of the models in 3. 
+```{r}
+results <- resamples(list(DecisionTree = dt_model2, KNN = knn_model))
+bwplot(results)
+```
+
+5. What is your final selection for the model? Test the accuracy of your final model on the test data. 
+```{r}
+## The final selection is the 5-fold rpart2 model 
+library(caret)
+prediction <-predict(dt_model2, newdata = df2_test)
+confusionmatrix <-confusionMatrix(data = prediction, reference = df2_test$target, positive = "high")
+confusionmatrix$overall[1]
+```
+
+6. Create another `target` variable (binary), decide the input variables and redo 1 to 5. 
+```{r}
+library(dplyr)
+df3 = read_sas('hdd0318cy.sas7bdat')
+df3 <- df3 %>%
+  filter(yod == 18)
+df3 <- df3 %>%
+  select("yod", "payfix","pay_ub92","age",  
+                      "sex","raceethn","provider","moa", 
+                      "yoa","mod","admtype", "asource" , 
+                      "preopday" ,"los", "service" , "icu","ccu",    
+                      "dispub92", "payer"  ,"drg","trandb", 
+                      "randbg","randbs","orr", "anes","seq",   
+                      "lab","dtest", "ther","blood","phar", 
+                      "other","patcon","bwght","total","tot" ,  
+                      "ecodub92","b_wt","pt_state","diag_adm","ancilar" ,
+                      "campus","er_fee","er_chrg","er_mode","obs_chrg",
+                      "obs_hour","psycchrg","nicu_day")
+missing_values <- df3 %>%
+    summarise_all(~ sum(is.na(.)))
+df3$total <- as.numeric(as.character(df3$total))
+df3 <- df3 %>%
+  filter(!is.na(raceethn) & !is.na(admtype))
+df3 <- df3 %>%
+  mutate(target = case_when(
+    sex == 1 ~ "Male",
+    sex == 2 ~ "Female",
+    TRUE     ~ NA_character_
+  ))
+df3 <- df3 %>%
+  filter(!is.na(target))
+table(df3$target, useNA = "ifany")
+df3 <- df3 %>%
+  select(age, raceethn, provider, moa, mod, admtype, campus, total, los, target)
+library(tidyverse)
+library(caret)
+library(rpart)
+df3 <- df3 %>% 
+  mutate(target = as.factor(target),
+         raceethn = as.factor(raceethn),
+         age = as.numeric(age), 
+         provider = as.factor(provider), 
+         campus = as.factor(campus),
+         admtype = as.factor(admtype), 
+         moa = as.factor(moa), 
+         mod = as.factor(mod),
+         total = as.numeric(total))
+splitIndex <- createDataPartition(df3$target, p = .10, 
+                                  list = FALSE)
+df3_train <- df3[ splitIndex,]
+df3_test <- df3[-splitIndex,]
+## Model 2.1
+dt_model2 <- rpart(target ~ ., 
+            data = df3_train,
+            control=rpart.control(maxdepth=4))
+library(rpart.plot)
+library(caret)
+rpart.plot(dt_model2)
+
+## Variable Importance
+varImp2 <- varImp(dt_model2)
+varImp2
+if (!is.null(dt_model2$splits) && nrow(dt_model2$splits) > 0) {
+  varImp2 <- varImp(dt_model2)
+  print(varImp2)
+} else {
+  cat("Tree has no splits — variable importance not available.\n")
+}
+## Model 2.2
+tuneGrid2 <- expand.grid(maxdepth = 2:10)
+trControl2 <- trainControl(method = "cv",
+                         number = 5)
+dt_model3 <- train(target~., data=df3_train, 
+                                method = "rpart2", 
+                                trControl = trControl2,
+                                tuneGrid = tuneGrid2)
+plot(dt_model3)
+## Model 2.3
+knn_model2 <- train(
+  target ~ .,
+  data = df3_train,
+  method = "knn",
+  trControl = trControl2,
+  tuneLength = 10
+)
+knn_model2
+plot(knn_model2)
+
+## Model Comparison
+results2 <- resamples(list(DecisionTree = dt_model3, KNN = knn_model2))
+bwplot(results2)
+
+## Final Model Selection and Testing
+prediction2 <-predict(dt_model3, newdata = df3_test)
+confusionmatrix2 <- confusionMatrix(data = prediction2, reference = df3_test$target, positive = "Male")
+confusionmatrix2$overall[1]
+
+```
+
+7. Write a paragraph to summarize the section and give your comments on the results. 
+## Summary Paragraph 
+In this section, we use different models to manipulate the data into finding the most accurate testing results. We first created a binary target variable based on total charges, classifying patients as either "low" or "high" based on whether their total charges were below or above the median. We then trained a decision tree model using the rpart package and visualized the tree structure and variable importance. The decision tree provided insights into which variables were most influential in predicting total charges. We further enhanced our analysis by employing the caret package to perform cross-validation and hyperparameter tuning for both the decision tree and KNN models. The tuning plots allowed us to visualize the performance of each model across different hyperparameter settings. Upon comparing the models, we found that the rpart2 decision tree model performed better in terms of accuracy on the test data with an accuracy of about 81%.50. Then we chose our own target, in this case "Male" and "Female" and ran the same process as we did with the original targwt. The decision tree model again outperformed the KNN model with an accuracy of about 59.60%. Overall, this section demonstrated the effectiveness of decision tree models in classification tasks and highlighted the importance of model tuning and validation in achieving reliable results.
+-------

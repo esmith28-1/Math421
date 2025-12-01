@@ -1,0 +1,381 @@
+---
+title: "Midterm Presentation"
+format: revealjs
+theme: simple
+output-file: "Midterm_Presentation.html"
+---
+
+## Rhode Island Department of Health Data Presentation
+
+by Emerson Smith
+
+------------------------------------------------------------------------
+
+## Distribution of Age
+
+```{r setup, include=FALSE, cache=TRUE}
+getwd()
+load("df_loaded.RData")
+load("df2_loaded.RData")
+load("df3_loaded.RData")
+```
+
+```{r}
+library(lubridate)
+library(tidyverse)
+library(knitr)
+plot1 <- ggplot(df, aes(x = age)) +
+  geom_histogram(binwidth = 5, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Age",
+       x = "Age",
+       y = "Count",
+       caption = "Histogram showing the distribution of patient ages") +
+  theme_minimal()
+print(plot1)
+```
+
+------------------------------------------------------------------------
+
+## Total Charges by Month of Admission
+
+```{r}
+plot2 <- ggplot(df, aes(x = factor(moa), y = tot)) +
+  geom_boxplot(fill = "orange", color = "black", alpha = 0.7) +
+  labs(title = "Total Charges by Month of Admission",
+       x = "Month of Admission",
+       y = "Total Charges",
+       caption = "Boxplot showing total charges across different months of admission") +
+  theme_minimal()
+print(plot2)
+```
+
+------------------------------------------------------------------------
+
+## Distribution of Length of Stay
+
+```{r}
+plot3 <- ggplot(df, aes(x = los)) +
+  geom_histogram(binwidth = 1, fill = "pink", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Length of Stay",
+       x = "Length of Stay (days)",
+       y = "Count",
+       caption = "Histogram showing the distribution of length of stay") +
+  theme_minimal()
+print(plot3)
+```
+
+------------------------------------------------------------------------
+
+## Average Length of Stay by Season
+
+```{r}
+plot4 <- ggplot(df, aes(x = factor(season), y = los)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "green", color = "black", alpha = 0.7) +
+  labs(title = "Average Length of Stay by Season",
+       x = "Season",
+       y = "Average Length of Stay (days)",
+       caption = "Bar plot showing average length of stay across different seasons") +
+  theme_minimal()
+print(plot4)
+```
+
+------------------------------------------------------------------------
+
+## Total Charges by Provider
+
+```{r}
+plot5 <- ggplot(df, aes(x = reorder(provider, -tot), y = tot)) +
+  geom_bar(stat = "summary", fun = "sum", fill = "purple", color = "black", alpha = 0.7) +
+  labs(title = "Total Charges by Provider",
+       x = "Provider",
+       y = "Total Charges",
+       caption = "Bar plot showing total charges by each provider") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+print(plot5)
+```
+
+------------------------------------------------------------------------
+
+## Length of Stay vs. Total Charges
+
+```{r}
+plot6 <- ggplot(df, aes(x = los, y = tot)) +
+  geom_point(alpha = 0.5, color = "red") +
+  labs(title = "Length of Stay vs Total Charges",
+       x = "Length of Stay (days)",
+       y = "Total Charges",
+       caption = "Scatter plot showing the relationship between length of stay and total charges") +
+  theme_minimal()
+print(plot6)
+```
+
+------------------------------------------------------------------------
+
+## Average Total Charges by Age Group
+
+```{r}
+plot7 <- ggplot(df, aes(x = cut(age, breaks = seq(0, 100, by = 10)), y = tot)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "cyan", color = "black", alpha = 0.7) +
+  labs(title = "Average Total Charges by Age Group",
+       x = "Age Group",
+       y = "Average Total Charges",
+       caption = "Bar plot showing average total charges across different age groups") +
+  theme_minimal()
+print(plot7)
+```
+
+------------------------------------------------------------------------
+
+## Distribution of Total Charges
+
+```{r}
+plot8 <- ggplot(df, aes(x = tot)) +
+  geom_histogram(binwidth = 1000, fill = "yellow", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Total Charges",
+       x = "Total Charges",
+       y = "Count",
+       caption = "Histogram showing the distribution of total charges") +
+  theme_minimal()
+print(plot8)
+```
+
+------------------------------------------------------------------------
+
+## Average Total Charges by Season
+
+```{r}
+plot9 <- ggplot(df, aes(x = factor(season), y = tot)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "lightgreen", color = "black", alpha = 0.7) +
+  labs(title = "Average Total Charges by Season",
+       x = "Season",
+       y = "Average Total Charges",
+       caption = "Bar plot showing average total charges across different seasons") +
+  theme_minimal()
+print(plot9)
+```
+
+------------------------------------------------------------------------
+
+## Average Age by Month of Admission
+
+```{r}
+plot10 <- ggplot(df, aes(x = factor(moa), y = age)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "lightblue", color = "black", alpha = 0.7) +
+  labs(title = "Average Age by Month of Admission",
+       x = "Month of Admission",
+       y = "Average Age",
+       caption = "Bar plot showing average age across different months of admission") +
+  theme_minimal()
+print(plot10)
+```
+
+------------------------------------------------------------------------
+
+## Total Charges Over Months (Animated)
+
+```{r, warning=FALSE}
+library(ggplot2)
+library(gganimate)
+library(dplyr)
+plot11 <- ggplot(df, aes(x = factor(moa), y = tot, group = 1)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red") +
+  labs(title = "Total Charges Over Months",
+       subtitle = "Month: {frame_along}",
+       x = "Month of Admission",
+       y = "Total Charges",
+       caption = "Line plot showing total charges over different months of admission") +
+  theme_minimal() +
+  transition_reveal(moa)
+animate(plot11, nframes = 100, fps = 10)
+```
+
+------------------------------------------------------------------------
+
+## Target 1 Training Data rpart (Model 1.1)
+
+```{r}
+library(rpart)
+library(rpart.plot)
+library(caret)
+dt_model <- rpart(target ~ ., 
+            data = df2_train,
+            control=rpart.control(maxdepth=2))
+rpart.plot(dt_model) 
+if (!is.null(dt_model$splits) && nrow(dt_model$splits) > 0) {
+  varImp <- varImp(dt_model)
+  print(varImp)
+} else {
+  cat("Tree has no splits — variable importance not available.\n")
+}
+```
+
+------------------------------------------------------------------------
+
+## Caret Model for Target 1 (Model 1.2 )
+
+```{r}
+library(caret)
+## Model 1.2
+tuneGrid <- expand.grid(maxdepth = 2:10)
+trControl <- trainControl(method = "cv",
+                         number = 5)
+dt_model2 <- train(
+  target ~ ., 
+  data = df2_train,
+  method = "rpart2", 
+  trControl = trControl,
+  tuneGrid = tuneGrid,
+  na.action = na.omit
+)
+plot(dt_model2)
+```
+
+------------------------------------------------------------------------
+
+## Caret Model for Target 1 (Model 1.3)
+
+```{r}
+knn_model <- train(
+  target ~ .,
+  data = df2_train,
+  method = "knn",
+  trControl = trControl,
+  tuneLength = 10,
+  na.action = na.omit
+)
+knn_model
+plot(knn_model)
+```
+
+------------------------------------------------------------------------
+
+## Model Comparison for Target 1
+
+```{r}
+results <- resamples(list(DecisionTree = dt_model2, KNN = knn_model))
+bwplot(results)
+```
+
+------------------------------------------------------------------------
+
+## Final Selection for Target 1
+
+```{r}
+library(caret)
+prediction <-predict(dt_model2, newdata = df2_test)
+confusionmatrix <-confusionMatrix(data = prediction, reference = df2_test$target, positive = "high")
+confusionmatrix$overall[1]
+```
+
+------------------------------------------------------------------------
+
+## New Target Variable (in df3_loaded.RData)
+
+df3 \<- df3 %\>%
+
+mutate(target = case_when(
+
+sex == 1 \~ "Male",
+
+sex == 2 \~ "Female",
+
+TRUE \~ NA_character\_
+
+))
+
+filter(!is.na(target))
+
+```{r}
+table(df3$target, useNA = "ifany")
+df3 <- df3 %>%
+  select(age, raceethn, provider, moa, mod, admtype, campus, total, los, target)
+```
+
+------------------------------------------------------------------------
+
+## Testing and Training Data
+
+```{r}
+library(tidyverse)
+library(caret)
+library(rpart)
+df3 <- df3 %>% 
+  mutate(target = as.factor(target),
+         raceethn = as.factor(raceethn),
+         age = as.numeric(age), 
+         provider = as.factor(provider), 
+         campus = as.factor(campus),
+         admtype = as.factor(admtype), 
+         moa = as.factor(moa), 
+         mod = as.factor(mod),
+         total = as.numeric(total))
+splitIndex <- createDataPartition(df3$target, p = .10, 
+                                  list = FALSE)
+df3_train <- df3[ splitIndex,]
+df3_test <- df3[-splitIndex,]
+```
+
+------------------------------------------------------------------------
+
+## Target 2 Training Data rpart (Model 2.1)
+
+```{r}
+dt_model2 <- rpart(target ~ ., 
+            data = df3_train,
+            control=rpart.control(maxdepth=4))
+library(rpart.plot)
+library(caret)
+rpart.plot(dt_model2)
+```
+
+------------------------------------------------------------------------
+
+## Caret Model for Target 2 (Model 2.2)
+
+```{r}
+tuneGrid2 <- expand.grid(maxdepth = 2:10)
+trControl2 <- trainControl(method = "cv",
+                         number = 5)
+dt_model3 <- train(target~., data=df3_train, 
+                                method = "rpart2", 
+                                trControl = trControl2,
+                                tuneGrid = tuneGrid2)
+plot(dt_model3)
+```
+
+------------------------------------------------------------------------
+
+## Caret Model for Target 2 (Model 2.3)
+
+```{r}
+knn_model2 <- train(
+  target ~ .,
+  data = df3_train,
+  method = "knn",
+  trControl = trControl2,
+  tuneLength = 10
+)
+knn_model2
+plot(knn_model2)
+```
+
+------------------------------------------------------------------------
+
+## Comparison Models for Target 2
+
+```{r}
+results2 <- resamples(list(DecisionTree = dt_model3, KNN = knn_model2))
+bwplot(results2)
+```
+
+------------------------------------------------------------------------
+
+## Final Model Selection for Target 2
+
+```{r}
+prediction2 <-predict(dt_model3, newdata = df3_test)
+confusionmatrix2 <- confusionMatrix(data = prediction2, reference = df3_test$target, positive = "Male")
+confusionmatrix2$overall[1]
+```
