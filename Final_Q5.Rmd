@@ -1,0 +1,72 @@
+
+---
+title: "Final - Check Box"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    logo: logo.png
+    source_code: embed
+    social: menu
+
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(DT)
+df <- read_csv('https://bryantstats.github.io/math421/data/us-states.csv')
+df$date <- as.Date(df$date)
+year <- format(df$date, "%Y")
+```
+
+{.sidebar}
+=======================================================================
+
+The sinking of the Titanic is one of the most infamous shipwrecks in history. While there was some element of luck involved in surviving, it seems some groups of people were more likely to survive than others.  Select the input for the plots. 
+
+```{r}
+checkboxGroupInput(inputId = "year_choice", 
+                   label = h3("Year"),
+                   choices = unique(year), 
+                   inline = TRUE,
+                   selected = 'S')
+
+```
+
+Main Tab 1
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Density Plot
+
+```{r}
+renderPlotly({
+  p1 <- df %>% 
+    filter(year %in% input$year_choice) %>% 
+    ggplot(aes(x=cases, color=deaths))+
+    geom_density()
+  ggplotly(p1)
+})
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Bar Plot
+
+```{r}
+renderPlotly({
+  p2 <- df %>% 
+    filter(year %in% input$year_choice) %>% 
+    ggplot(aes(x=state, fill=deaths))+
+    geom_bar()
+  ggplotly(p2)
+})
+```
