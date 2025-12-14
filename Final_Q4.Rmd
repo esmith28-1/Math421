@@ -1,0 +1,72 @@
+
+---
+title: "FinalQ4 - SelectInput"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    logo: logo.png
+    source_code: embed
+    social: menu
+
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(DT)
+df <- read_csv('https://bryantstats.github.io/math421/data/us-states.csv')
+df$date <- as.Date(df$date)
+
+
+```
+
+{.sidebar}
+=======================================================================
+
+
+```{r}
+selectInput(
+inputId = "state_choice",
+label = "Choose a state:",
+choices = sort(unique(df$state)),
+selected = "Massachusetts"
+)
+
+```
+
+Main Tab 1
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Density Plot
+
+```{r}
+renderPlotly({
+  p1 <- df %>% 
+    filter(state==input$state_choice) %>% 
+    ggplot(aes(x=cases, color=deaths))+
+    geom_density()
+  ggplotly(p1)
+})
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Bar Plot
+
+```{r}
+renderPlotly({
+  p2 <- df %>% 
+    filter(state==input$state_choice) %>% 
+    ggplot(aes(x=date, fill=fips))+
+    geom_bar()
+})
+```

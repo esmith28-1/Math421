@@ -1,0 +1,138 @@
+
+---
+title: "Final - Combination of Inputs"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    logo: logo.png
+    source_code: embed
+    social: menu
+
+runtime: shiny
+---
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(DT)
+library(lubridate)
+df <- read_csv("https://bryantstats.github.io/math421/data/us-states.csv") %>%
+  mutate(
+    date = as.Date(date),
+    year = lubridate::year(date)
+  )
+
+```
+
+{.sidebar}
+=======================================================================
+
+The sinking of the Titanic is one of the most infamous shipwrecks in history. While there was some element of luck involved in surviving, it seems some groups of people were more likely to survive than others.  Select the input for the plots. 
+
+
+```{r}
+sliderInput(
+  inputId = "death_input",
+  label = h3("Death Range"),
+  min = min(df$deaths, na.rm = TRUE),
+  max = max(df$deaths, na.rm = TRUE),
+  value = c(5000, 10000)
+)
+
+selectInput(
+  inputId = "state_input",
+  label = h3("State"),
+  choices = sort(unique(df$state)),
+  selected = "Massachusetts"
+)
+
+checkboxGroupInput(
+  inputId = "year_choice",
+  label = h3("Year"),
+  choices = sort(unique(df$year)),
+  selected = c("2020", "2021"),
+  inline = TRUE
+)
+```
+
+Main Tab 1
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Density Plot
+
+```{r}
+renderPlotly({
+  req(input$death_input, input$state_input, input$year_choice)
+
+  filtered_df <- df %>%
+    filter(
+      deaths >= input$death_input[1],
+      deaths <= input$death_input[2],
+      state == input$state_input,
+      year %in% input$year_choice,
+      deaths > 0
+    )
+
+  validate(
+    need(
+      nrow(filtered_df) > 5,
+      "No data available for the selected year, state, and death range."
+    )
+  )
+
+  p1 <- ggplot(filtered_df,
+               aes(x = deaths, color = factor(year))) +
+    geom_density(linewidth = 1) +
+    scale_x_log10() +
+    labs(
+      title = "Distribution of Deaths by Year",
+      x = "Deaths (log scale)",
+      color = "Year"
+    )
+
+  ggplotly(p1)
+})
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Bar Plot
+
+```{r}
+renderPlotly({
+  req(input$state_input, input$year_choice)
+
+  filtered_df <- df %>%
+    filter(
+      state == input$state_input,
+      year %in% input$year_choice
+    ) %>%
+    group_by(year) %>%
+    summarise(total_cases = sum(cases, na.rm = TRUE))
+
+  validate(
+    need(nrow(filtered_df) > 0,
+         "No data available for selected filters")
+  )
+
+  p2 <- ggplot(filtered_df,
+               aes(x = factor(year), y = total_cases, fill = factor(year))) +
+    geom_col() +
+    labs(
+      title = "Total Cases by Year",
+      x = "Year",
+      y = "Total Cases",
+      fill = "Year"
+    )
+
+  ggplotly(p2)
+})
+```
+

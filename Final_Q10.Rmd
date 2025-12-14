@@ -1,0 +1,272 @@
+
+---
+title: "Happiness Data - Combination of Inputs"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    logo: logo.png
+    source_code: embed
+    social: menu
+
+runtime: shiny
+---
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(DT)
+library(lubridate)
+df <- read_csv('happiness.csv')
+df <- df %>%
+  rename(
+    happiness_score = `Happiness Score`,
+    happiness_rank  = `Happiness Rank`,
+    region          = Region,
+    country         = Country,
+    gdp             = `Economy (GDP per Capita)`,
+    family          = Family,
+    life_expectancy =`Health (Life Expectancy)`
+  )
+df <- df %>%
+  mutate(
+    happiness_group = case_when(
+      happiness_rank <= 53 ~ "Top",
+      happiness_rank <= 106 ~ "Middle",
+      TRUE ~ "Bottom"
+    )
+  )
+df <- df %>%
+  mutate(
+    family_group = case_when(
+      family < quantile(family, 0.33, na.rm = TRUE) ~ "Low",
+      family < quantile(family, 0.66, na.rm = TRUE) ~ "Medium",
+      TRUE ~ "High"
+    )
+  )
+```
+
+
+{.sidebar}
+=======================================================================
+```{r}
+selectInput(
+  "country_input",
+  "Choose Country:",
+  choices = sort(unique(df$country)),
+  multiple = TRUE,
+  selected = c("Russia", "United States")
+)
+sliderInput(
+  inputId = "happiness_score_input",
+  label = "Happiness Score Range",
+  min = floor(min(df$happiness_score, na.rm = TRUE)),
+  max = ceiling(max(df$happiness_score, na.rm = TRUE)),
+  value = c(
+    quantile(df$happiness_score, 0.33, na.rm = TRUE),
+    quantile(df$happiness_score, 0.66, na.rm = TRUE)
+  )
+)
+checkboxGroupInput(
+  inputId = "region_input",
+  label = "Region",
+  choices = sort(unique(df$region)),
+  selected = c('Western Europe', 'Eastern Asia'))
+
+radioButtons(inputId = "rank_input", 
+             label = h2("Select Rank group"),
+             choices = c('Top','Middle','Bottom'),
+             inline = TRUE,
+             selected = 'Top')
+selectizeInput(
+  inputId = "family_range",
+  label = "Family (Social Support Level)",
+  choices = c("Low", "Medium", "High"),
+  selected = c("Low", "Medium", "High"),
+  multiple = TRUE
+)
+```
+
+Main Tab 1
+=====================================
+
+## Column {.tabset}
+
+### Column Tab 1
+
+#### Data Table
+
+```{r}
+DT::datatable(
+  df,
+  filter = "top",
+  options = list(pageLength = 10))
+```
+
+```{r, include=FALSE}
+filtered_df <- reactive({
+  req(
+    input$happiness_score_input,
+    input$region_input,
+    input$rank_input,
+    input$family_range
+  )
+
+  df %>%
+    filter(
+      happiness_score >= input$happiness_score_input[1],
+      happiness_score <= input$happiness_score_input[2],
+      region %in% input$region_input,
+      happiness_group == input$rank_input,
+      family_group %in% input$family_range
+    )
+})
+```
+
+### Column Tab 2
+
+#### Average Happiness Score by Region
+```{r}
+renderPlotly({
+
+  plot_df <- filtered_df() %>%
+    group_by(region) %>%
+    summarise(
+      avg_happiness = mean(happiness_score, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  validate(
+    need(nrow(plot_df) > 0, "No data for selected filters")
+  )
+
+  p <- ggplot(
+    plot_df,
+    aes(x = region, y = avg_happiness, fill = region)
+  ) +
+    geom_col() +
+    labs(
+      title = "Average Happiness Score by Region",
+      x = "Region",
+      y = "Average Happiness Score"
+    )
+
+  ggplotly(p)
+})
+```
+
+### Column Tab 3
+
+#### Happiness vs Family
+```{r}
+renderPlotly({
+
+  plot_df <- filtered_df()
+
+  validate(
+    need(nrow(plot_df) > 0, "No data for selected filters")
+  )
+
+  p <- ggplot(
+    plot_df,
+    aes(
+      x = family,              
+      y = happiness_score,
+      color = region
+    )
+  ) +
+    geom_point(size = 2, alpha = 0.7) +
+    labs(
+      title = "Happiness Score vs Family Support",
+      x = "Family (Social Support)",
+      y = "Happiness Score",
+      color = "Region"
+    )
+
+  ggplotly(p)
+})
+```
+
+### Column Tab 4
+
+#### Density Plot
+```{r}
+renderPlotly({
+  p1 <- df %>% 
+    filter(region %in% input$region_input) %>% 
+    ggplot(aes(x=family, color=happiness_rank))+
+    geom_density()
+  ggplotly(p1)
+})
+```
+
+Main Tab 2
+=======================================================================
+```{r}
+filtered_df <- reactive({
+  req(
+    input$happiness_score_input,
+    input$region_input,
+    input$rank_input,
+    input$family_range
+  )
+  df %>%
+    filter(
+      happiness_score >= input$happiness_score_input[1],
+      happiness_score <= input$happiness_score_input[2],
+      region %in% input$region_input,
+      happiness_group == input$rank_input,
+      family_group %in% input$family_range
+    )
+})
+```
+
+
+#### GDP by Country
+```{r}
+renderPlotly({
+  p1 <- df %>% 
+    filter(country %in% input$country_input) %>% 
+    ggplot(aes(x=gdp, color=happiness_rank))+
+    geom_density()
+  ggplotly(p1)
+})
+```
+
+Row
+-----------------------------------------------------------------------
+
+#### Life Expectancy by Region
+```{r}
+renderPlotly({
+  p2 <- df %>% 
+    filter(region %in% input$region_input) %>% 
+    ggplot(aes(x=life_expectancy, color=Freedom))+
+    geom_density()
+  ggplotly(p2)
+})
+```
+
+Main Tab 3
+=======================================================================
+This dashboard explored global happiness metrics across countries and regions.
+Users can filter results by happiness score, region, rank group, and family
+support level to better understand what factors influence happiness. Both the family support, and happiness rank were separated into three groups, appear to have strong relationships with overall happiness scores. The countries with higher family support levels generally report higher happiness scores. Additionally, countries in the "Top" happiness rank group consistently show higher average happiness scores compared to "Middle" and "Bottom" groups. These insights highlight the importance of social support and other factors in determining overall happiness across different regions.
+
+```{r, results="asis"}
+tags$img(
+  src = "wp2753288.jpg",
+  width = "70%"
+)
+```
+
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+

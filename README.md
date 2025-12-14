@@ -30,3 +30,6 @@ This is my first Assignment: [Assignment 1](a1.html)
 
 [Midterm Assignment](midterm.html)
 [Midterm Presentation](Midterm_Presentation.html)
+
+[Final Project](final.html)
+

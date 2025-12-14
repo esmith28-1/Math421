@@ -1,0 +1,79 @@
+
+---
+title: "Final - Radio Button"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    logo: logo.png
+    source_code: embed
+    social: menu
+
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(DT)
+df <- read_csv('https://bryantstats.github.io/math421/data/us-states.csv')
+df$date <- as.Date(df$date)
+year <- format(df$date, "%Y")
+```
+
+{.sidebar}
+=======================================================================
+
+The sinking of the Titanic is one of the most infamous shipwrecks in history. While there was some element of luck involved in surviving, it seems some groups of people were more likely to survive than others.  Select the input for the plots. 
+
+```{r}
+radioButtons(inputId = "year_input", 
+             label = h2("Select Year"),
+             choices = c(2020,2021,2022),
+             inline = TRUE,
+             selected = 2020)
+```
+
+Main Tab 1
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Density Plot
+
+```{r}
+renderPlotly({
+  p1 <- df %>% 
+    filter(year==input$year_input) %>% 
+    ggplot(aes(x=deaths, color=cases))+
+    geom_density()
+  ggplotly(p1)
+})
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Bar Plot
+
+```{r}
+renderPlot({
+  req(input$year_input)
+
+  total_cases <- df %>%
+    filter(year == input$year_input) %>%
+    summarise(total = sum(cases, na.rm = TRUE))
+
+  ggplot(total_cases, aes(x = factor(input$year_input), y = total)) +
+    geom_col(fill = "steelblue") +
+    labs(
+      title = paste("Total Cases in", input$year_input),
+      x = "Year",
+      y = "Total Cases"
+    )
+})
+```

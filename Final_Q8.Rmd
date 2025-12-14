@@ -1,0 +1,74 @@
+
+---
+title: "Final - Check Box"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    logo: logo.png
+    source_code: embed
+    social: menu
+
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(DT)
+library(lubridate)
+df <- read_csv('https://bryantstats.github.io/math421/data/us-states.csv')
+df$date <- as.Date(df$date)
+```
+
+{.sidebar}
+=======================================================================
+
+- The sinking of the Titanic is one of the most infamous shipwrecks in history. While there was some element of luck involved in surviving, it seems some groups of people were more likely to survive than others.  Select the input for the plots. 
+
+- In this example, the data for Date is not fictional and not real data. 
+
+```{r}
+dateRangeInput(inputId = "date_input", 
+               label = h2("Date range"), 
+               start = min(df$date), 
+               end = max(df$date),
+               min = min(df$date), 
+               max = max(df$date))
+```
+
+Main Tab 1
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Density Plot
+
+```{r}
+renderPlotly({
+  p1 <- df %>% 
+    filter(date > input$date_input[1], date < input$date_input[2]) %>% 
+    ggplot(aes(x=state, color=deaths))+
+    geom_density()
+  ggplotly(p1)
+})
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Bar Plot
+
+```{r}
+renderPlotly({
+  p2 <- df %>% 
+    filter(date > input$date_input[1], date < input$date_input[2]) %>% 
+    ggplot(aes(x=deaths, fill=cases))+
+    geom_bar()
+  ggplotly(p2)
+})
+```
